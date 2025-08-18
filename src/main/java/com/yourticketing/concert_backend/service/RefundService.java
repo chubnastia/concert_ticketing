@@ -8,6 +8,8 @@ import com.yourticketing.concert_backend.repository.SaleRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
+import static com.yourticketing.concert_backend.logging.DomainLog.purchaseCancelled;
+
 @Service
 public class RefundService {
 
@@ -44,5 +46,9 @@ public class RefundService {
         // Reflect reservation state
         r.setStatus("CANCELLED");
         reservationRepo.save(r);
+
+        // DOMAIN LOG: purchase cancelled / refunded
+        // If you want the exact 'available_after', you can reload the concert here.
+        purchaseCancelled(r.getId(), s.getId(), r.getQuantity(), -1);
     }
 }

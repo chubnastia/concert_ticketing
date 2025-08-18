@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
+import static com.yourticketing.concert_backend.logging.DomainLog.purchaseCompleted;
+
 @Service
 public class PurchaseService {
 
@@ -23,7 +25,6 @@ public class PurchaseService {
 
     @Transactional
     public BuyResponse buy(long reservationId, boolean fail) {
-        // Lock the reservation row
         Reservation r = reservationRepo.findByIdForUpdate(reservationId)
                 .orElseThrow(() -> new IllegalArgumentException("reservation not found"));
 
@@ -37,13 +38,11 @@ public class PurchaseService {
             throw new IllegalStateException("payment failed (simulated)");
         }
 
-        // Idempotency: return existing sale if present
         var existing = saleRepo.findByReservationId(reservationId);
         if (existing.isPresent()) {
             return new BuyResponse(existing.get().getId());
         }
 
-        // Create sale, close reservation
         Sale s = new Sale();
         s.setReservationId(reservationId);
         s.setStatus("COMPLETED");
@@ -51,6 +50,9 @@ public class PurchaseService {
 
         r.setStatus("BOUGHT");
         reservationRepo.save(r);
+
+        // DOMAIN LOG: purchase completed
+        purchaseCompleted(r.getId(), s.getId());
 
         return new BuyResponse(s.getId());
     }

@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
+import static com.yourticketing.concert_backend.logging.DomainLog.reservationPlaced;
+
 @Service
 public class ReservationService {
 
@@ -30,13 +32,11 @@ public class ReservationService {
             throw new IllegalArgumentException("concertId is required");
         }
 
-        // Try to decrement availability atomically
         int updated = concertRepo.tryDecrement(req.concertId, req.quantity);
         if (updated == 0) {
             throw new IllegalStateException("Not enough tickets available");
         }
 
-        // Create reservation with 120s expiry
         Reservation r = new Reservation();
         r.setConcertId(req.concertId);
         r.setUserId(req.userId);
@@ -45,8 +45,8 @@ public class ReservationService {
         r.setStatus("ACTIVE");
         r = resRepo.save(r);
 
-        // Later we will publish an SQS delayed message for expiry here
-        // expiryPublisher.sendDelayed(r.getId(), Duration.ofSeconds(120));
+        // DOMAIN LOG: reservation placed (held)
+        reservationPlaced(req.concertId, r.getId(), req.quantity);
 
         return new ReserveResponse(r.getId());
     }
