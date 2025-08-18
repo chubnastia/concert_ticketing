@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: concert-backend
+  datasource:
+    url: jdbc:postgresql://localhost:5432/postgres
+    username: postgres
+    password: pass
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update  # Auto-creates/updates tables in dev; change to 'validate' later
+    show-sql: true  # Logs SQL for debugging
+  server:
+    port: 8080
