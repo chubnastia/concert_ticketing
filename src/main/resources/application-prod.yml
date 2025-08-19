@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: concert-backend
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+
+server:
+  port: 8080
+
+app:
+  expirySweepMs: 1000
+  outboxSweepMs: 2000
+
+logging:
+  level:
+    root: INFO

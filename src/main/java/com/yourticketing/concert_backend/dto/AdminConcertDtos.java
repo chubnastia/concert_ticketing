@@ -1,25 +1,24 @@
 package com.yourticketing.concert_backend.dto;
 
-import jakarta.validation.constraints.*;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public final class AdminConcertDtos {
-
     private AdminConcertDtos() {}
 
-    public static class CreateRequest {
-        @NotBlank public String name;
-        @NotNull public LocalDateTime startTime; // ISO-8601: 2025-09-01T20:00:00
-        @NotBlank public String venue;
-        @Min(0) public int capacity;
-        @PositiveOrZero public double price;
-    }
+    public record CreateRequest(
+            String name,
+            LocalDateTime startTime,
+            String venue,
+            int capacity,
+            BigDecimal price
+    ) {}
 
-    public static class UpdateRequest {
-        @NotBlank public String name;
-        @NotNull public LocalDateTime startTime;
-        @NotBlank public String venue;
-        @Min(0) public int capacity;
-        @PositiveOrZero public double price;
-    }
+    public record UpdateRequest(
+            String name,
+            LocalDateTime startTime,
+            String venue,
+            int capacity,
+            BigDecimal price
+    ) {}
 }
