@@ -17,12 +17,16 @@ public class RefundService {
     private final ReservationRepository reservationRepo;
     private final ConcertRepository concertRepo;
 
+    private final RestockService restockService;
+
     public RefundService(SaleRepository saleRepo,
                          ReservationRepository reservationRepo,
-                         ConcertRepository concertRepo) {
+                         ConcertRepository concertRepo,
+                         RestockService restockService) {
         this.saleRepo = saleRepo;
         this.reservationRepo = reservationRepo;
         this.concertRepo = concertRepo;
+        this.restockService = restockService;
     }
 
     @Transactional
@@ -50,5 +54,7 @@ public class RefundService {
         // DOMAIN LOG: purchase cancelled / refunded
         // If you want the exact 'available_after', you can reload the concert here.
         purchaseCancelled(r.getId(), s.getId(), r.getQuantity(), -1);
+        concertRepo.increment(r.getConcertId(), r.getQuantity());
+        restockService.maybeNotifyRestock(r.getConcertId());
     }
 }

@@ -16,29 +16,48 @@ public class ExpiryService {
 
     private final ReservationRepository reservationRepo;
     private final ConcertRepository concertRepo;
+    private final RestockService restockService;
 
-    public ExpiryService(ReservationRepository reservationRepo, ConcertRepository concertRepo) {
+    public ExpiryService(ReservationRepository reservationRepo,
+                         ConcertRepository concertRepo,
+                         RestockService restockService) {
         this.reservationRepo = reservationRepo;
         this.concertRepo = concertRepo;
+        this.restockService = restockService;
     }
 
-    /** Expires all overdue ACTIVE reservations. Returns number expired. */
+    /** Expires all overdue ACTIVE reservations. Returns number that actually transitioned to EXPIRED. */
     @Transactional
     public int sweep() {
-        List<Reservation> due = reservationRepo.findAllActiveExpired(LocalDateTime.now());
-        int count = 0;
-        for (Reservation r0 : due) {
-            // Lock per row to be safe across instances
-            reservationRepo.findByIdForUpdate(r0.getId()).ifPresent(r -> {
+        final LocalDateTime now = LocalDateTime.now();
+        List<Reservation> candidates = reservationRepo.findAllActiveExpired(now);
+
+        int expiredCount = 0;
+
+        for (Reservation probe : candidates) {
+            final boolean[] transitioned = { false };
+
+            // Lock the row to be safe across instances
+            reservationRepo.findByIdForUpdate(probe.getId()).ifPresent(r -> {
                 if (!"ACTIVE".equals(r.getStatus())) return;
-                if (r.getExpiry().isAfter(LocalDateTime.now())) return; // re-check
+                if (r.getExpiry() != null && r.getExpiry().isAfter(now)) return; // re-check with captured 'now'
+
+                // Mark expired and return tickets exactly once
                 r.setStatus("EXPIRED");
                 reservationRepo.save(r);
+
                 concertRepo.increment(r.getConcertId(), r.getQuantity());
+                restockService.maybeNotifyRestock(r.getConcertId());
+
                 reservationExpired(r.getConcertId(), r.getId(), r.getQuantity());
+                transitioned[0] = true;
             });
-            count++;
+
+            if (transitioned[0]) {
+                expiredCount++;
+            }
         }
-        return count;
+
+        return expiredCount;
     }
 }

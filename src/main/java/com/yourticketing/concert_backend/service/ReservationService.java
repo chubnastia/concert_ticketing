@@ -18,9 +18,12 @@ public class ReservationService {
     private final ConcertRepository concertRepo;
     private final ReservationRepository resRepo;
 
-    public ReservationService(ConcertRepository concertRepo, ReservationRepository resRepo) {
+    private final RestockService restockService;
+
+    public ReservationService(ConcertRepository concertRepo, ReservationRepository resRepo, RestockService restockService) {
         this.concertRepo = concertRepo;
         this.resRepo = resRepo;
+        this.restockService = restockService;
     }
 
     @Transactional
@@ -47,6 +50,7 @@ public class ReservationService {
 
         // DOMAIN LOG: reservation placed (held)
         reservationPlaced(req.concertId, r.getId(), req.quantity);
+        restockService.updateSoldOutIfZero(req.concertId);
 
         return new ReserveResponse(r.getId());
     }
