@@ -19,8 +19,24 @@ public class WatchlistController {
     }
 
     public static class JoinRequest {
-        @NotBlank @Email
+        @NotBlank(message = "Email is required")
+        @Email(message = "Email must be valid")
         public String email;
+
+        // Default constructor for Jackson
+        public JoinRequest() {}
+
+        public JoinRequest(String email) {
+            this.email = email;
+        }
+
+        public String getEmail() {
+            return email;
+        }
+
+        public void setEmail(String email) {
+            this.email = email;
+        }
     }
 
     @Operation(summary = "Join watchlist when the concert is sold out")

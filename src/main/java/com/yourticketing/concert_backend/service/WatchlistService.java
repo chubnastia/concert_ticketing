@@ -4,46 +4,39 @@ import com.yourticketing.concert_backend.model.Concert;
 import com.yourticketing.concert_backend.model.Watchlist;
 import com.yourticketing.concert_backend.repository.ConcertRepository;
 import com.yourticketing.concert_backend.repository.WatchlistRepository;
-import jakarta.transaction.Transactional;
-import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class WatchlistService {
 
-    private final ConcertRepository concertRepo;
     private final WatchlistRepository watchlistRepo;
+    private final ConcertRepository concertRepo;
 
-    public WatchlistService(ConcertRepository concertRepo, WatchlistRepository watchlistRepo) {
-        this.concertRepo = concertRepo;
+    public WatchlistService(WatchlistRepository watchlistRepo, ConcertRepository concertRepo) {
         this.watchlistRepo = watchlistRepo;
+        this.concertRepo = concertRepo;
     }
 
     @Transactional
     public void join(Long concertId, String email) {
-        Concert c = concertRepo.findById(concertId).orElseThrow();
+        Concert concert = concertRepo.findById(concertId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Concert not found"));
 
-        if (c.getAvailableTickets() > 0) {
-            // Per acceptance criteria: allow join only when sold out
-            throw new IllegalStateException("watchlist allowed only when sold out");
+        if (!concert.isSoldOut()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Concert is not sold out");
         }
 
-        String normalized = email.trim().toLowerCase();
-
-        // Fast path: if already present, return (idempotent)
-        if (watchlistRepo.existsByConcertIdAndEmail(concertId, normalized)) {
-            return; // 202 from controller
+        // Check for duplicate (optional, add unique constraint if needed)
+        if (watchlistRepo.existsByConcertIdAndEmail(concertId, email)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Already on watchlist");
         }
 
         Watchlist w = new Watchlist();
         w.setConcertId(concertId);
-        w.setEmail(normalized);
-
-        try {
-            watchlistRepo.save(w);
-        } catch (DataIntegrityViolationException dup) {
-            // Race: another request inserted the same (concertId,email) just now.
-            // Treat as idempotent success.
-        }
+        w.setEmail(email);
+        watchlistRepo.save(w);
     }
 }

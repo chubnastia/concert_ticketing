@@ -9,12 +9,15 @@ import java.time.LocalDateTime;
 @Entity
 @Data
 public class Concert {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String name;
+
     private LocalDateTime startTime;
+
     private String venue;
 
     private int capacity;
@@ -27,9 +30,11 @@ public class Concert {
     @Version
     private int version;
 
+    /** Added in V2 migration */
     @Column(nullable = false)
-    private boolean soldOut;
+    private boolean soldOut = false;
 
+    /** Token to avoid duplicate restock notifications (V2 migration) */
     @Column(nullable = false)
-    private long restockToken;
+    private long restockToken = 0L;
 }

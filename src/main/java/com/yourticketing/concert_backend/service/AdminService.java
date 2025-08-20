@@ -1,5 +1,6 @@
 package com.yourticketing.concert_backend.service;
 
+import com.yourticketing.concert_backend.dto.AdminConcertDtos;
 import com.yourticketing.concert_backend.dto.AdminConcertDtos.CreateRequest;
 import com.yourticketing.concert_backend.dto.AdminConcertDtos.UpdateRequest;
 import com.yourticketing.concert_backend.model.Concert;
@@ -35,34 +36,46 @@ public class AdminService {
     }
 
     @Transactional
-    public Concert update(long id, UpdateRequest req) {
+    public Concert update(long id, AdminConcertDtos.UpdateRequest r) {
         Concert c = concertRepo.findById(id).orElseThrow();
 
-        int beforeAvailable = c.getAvailableTickets();
-        int beforeCapacity  = c.getCapacity();
+        // copy mutable fields
+        c.setName(r.name());
+        c.setStartTime(r.startTime());
+        c.setVenue(r.venue());
+        c.setPrice(r.price());
 
-        c.setName(req.name());
-        c.setStartTime(req.startTime());
-        c.setVenue(req.venue());
-        c.setCapacity(req.capacity());
-        c.setPrice(req.price());
+        // compute capacity delta
+        int oldCap = c.getCapacity();
+        int newCap = r.capacity();
+        int delta  = newCap - oldCap;
 
-        // Adjust availableTickets when capacity changes
-        int deltaCap = req.capacity() - beforeCapacity;
-        int newAvail = beforeAvailable + deltaCap;
+        // always set the new capacity
+        c.setCapacity(newCap);
 
-        if (newAvail < 0) newAvail = 0;
-        if (newAvail > req.capacity()) newAvail = req.capacity();
-
-        c.setAvailableTickets(newAvail);
-        c.setSoldOut(newAvail == 0);
-
-        Concert saved = concertRepo.save(c);
-
-        // If we transition from 0 -> >0, notify watchlist
-        if (beforeAvailable == 0 && saved.getAvailableTickets() > 0) {
-            restockService.maybeNotifyRestock(saved.getId());
+        // if capacity increased, add delta to available tickets
+        if (delta > 0) {
+            c.setAvailableTickets(c.getAvailableTickets() + delta);
+        } else if (delta < 0) {
+            // clamp so we never go negative on availability
+            int newAvail = Math.max(0, c.getAvailableTickets() + delta);
+            c.setAvailableTickets(newAvail);
         }
-        return saved;
+
+        boolean wasSoldOut = c.isSoldOut();
+        boolean nowSoldOut = (c.getAvailableTickets() == 0);
+        c.setSoldOut(nowSoldOut);
+
+        // persist core changes
+        concertRepo.save(c);
+
+        // if we transitioned 0 -> >0, bump token and enqueue a single notify
+        if (wasSoldOut && !nowSoldOut) {
+            int newToken = (int) (c.getRestockToken() + 1);
+            c.setRestockToken(newToken);
+            concertRepo.save(c); // persist token bump
+        }
+
+        return c;
     }
 }
