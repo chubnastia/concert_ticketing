@@ -1,24 +1,19 @@
 spring:
-  application:
-    name: concert-backend
   datasource:
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME}
+    username: ${DB_USER}
     password: ${DB_PASSWORD}
-    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
   jpa:
     hibernate:
       ddl-auto: validate
+    open-in-view: false
   flyway:
     enabled: true
-    baseline-on-migrate: false
 
 server:
-  port: 8080
-
-app:
-  expirySweepMs: 1000
-  outboxSweepMs: 2000
+  port: ${PORT:8080}
 
 logging:
   level:

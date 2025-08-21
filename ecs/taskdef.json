@@ -1,0 +1,26 @@
+{
+  "family": "concert-taskdef",
+  "networkMode": "awsvpc",
+  "executionRoleArn": "arn:aws:iam::900335273492:role/ecsTaskExecutionRole",
+  "cpu": "256",
+  "memory": "512",
+  "requiresCompatibilities": ["FARGATE"],
+  "containerDefinitions": [
+    {
+      "name": "concert-backend",
+      "image": "<DO-NOT-HARDCODE-THIS>",
+      "essential": true,
+      "portMappings": [
+        { "containerPort": 8080, "protocol": "tcp" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/concert-backend",
+          "awslogs-region": "eu-north-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}

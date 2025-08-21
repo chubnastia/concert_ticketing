@@ -1,0 +1,18 @@
+server:
+  port: 0
+spring:
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    clean-disabled: true
+logging:
+  level:
+    org.hibernate.SQL: INFO
+    org.flywaydb: WARN
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health"

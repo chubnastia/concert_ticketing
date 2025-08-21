@@ -1,0 +1,43 @@
+{
+  "family": "concert-backend-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::123456789012:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::123456789012:role/concert-app-task-role",
+  "containerDefinitions": [
+    {
+      "name": "app",
+      "image": "REPLACED_BY_WORKFLOW",
+      "portMappings": [{ "containerPort": 8080, "protocol": "tcp" }],
+      "essential": true,
+      "environment": [
+        { "name": "SPRING_PROFILES_ACTIVE", "value": "prod" },
+        { "name": "PORT", "value": "8080" }
+      ],
+      "secrets": [
+        { "name": "DB_HOST",      "valueFrom": "arn:aws:ssm:REGION:ACCOUNT:parameter/concert/DB_HOST" },
+        { "name": "DB_PORT",      "valueFrom": "arn:aws:ssm:REGION:ACCOUNT:parameter/concert/DB_PORT" },
+        { "name": "DB_NAME",      "valueFrom": "arn:aws:ssm:REGION:ACCOUNT:parameter/concert/DB_NAME" },
+        { "name": "DB_USER",      "valueFrom": "arn:aws:ssm:REGION:ACCOUNT:parameter/concert/DB_USER" },
+        { "name": "DB_PASSWORD",  "valueFrom": "arn:aws:ssm:REGION:ACCOUNT:parameter/concert/DB_PASSWORD" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-region": "REGION",
+          "awslogs-group": "/ecs/concert-backend",
+          "awslogs-stream-prefix": "app"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"],
+        "interval": 15,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 15
+      }
+    }
+  ]
+}

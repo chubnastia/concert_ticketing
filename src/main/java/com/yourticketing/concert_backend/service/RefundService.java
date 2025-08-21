@@ -1,13 +1,12 @@
 package com.yourticketing.concert_backend.service;
 
-import com.yourticketing.concert_backend.model.Concert;
 import com.yourticketing.concert_backend.model.Reservation;
 import com.yourticketing.concert_backend.model.Sale;
 import com.yourticketing.concert_backend.repository.ConcertRepository;
 import com.yourticketing.concert_backend.repository.ReservationRepository;
 import com.yourticketing.concert_backend.repository.SaleRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import static com.yourticketing.concert_backend.logging.DomainLog.purchaseCancelled;
 
@@ -29,44 +28,46 @@ public class RefundService {
         this.restockService = restockService;
     }
 
+    /**
+     * Idempotent refund:
+     *  - marks sale REFUNDED if not already
+     *  - returns tickets to availability once
+     *  - sets reservation status to CANCELLED
+     *  - triggers watchlist restock notification if we moved 0 -> >0
+     */
     @Transactional
     public void cancelPurchase(long saleId) {
         Sale s = saleRepo.findById(saleId)
                 .orElseThrow(() -> new IllegalArgumentException("sale not found"));
 
+        // already refunded? do nothing
         if ("REFUNDED".equals(s.getStatus())) {
-            return; // idempotent
+            return;
         }
 
+        // mark refunded
         s.setStatus("REFUNDED");
         saleRepo.save(s);
 
+        // fetch the reservation linked to this sale
         Reservation r = reservationRepo.findById(s.getReservationId())
                 .orElseThrow(() -> new IllegalStateException("reservation for sale not found"));
 
-        // Return tickets to availability - load, update, save for optimistic lock
-        Concert concert = concertRepo.findById(r.getConcertId())
-                .orElseThrow(() -> new IllegalStateException("concert not found"));
-        boolean wasSoldOut = concert.isSoldOut();
-        concert.setAvailableTickets(concert.getAvailableTickets() + r.getQuantity());
-        if (concert.getAvailableTickets() > concert.getCapacity()) {
-            concert.setAvailableTickets(concert.getCapacity());
-        }
-        concert.setSoldOut(concert.getAvailableTickets() <= 0);
-        concertRepo.save(concert);
+        // return tickets to availability (once)
+        concertRepo.increment(r.getConcertId(), r.getQuantity());
 
-        int availableAfter = concert.getAvailableTickets();
-
-        // Reflect reservation state
+        // reflect reservation state
         r.setStatus("CANCELLED");
         reservationRepo.save(r);
 
-        // DOMAIN LOG: purchase cancelled / refunded
+        // get current availability for logging
+        int availableAfter = concertRepo.findById(r.getConcertId())
+                .orElseThrow().getAvailableTickets();
+
+        // domain log
         purchaseCancelled(r.getId(), s.getId(), r.getQuantity(), availableAfter);
 
-        // Notify watchlist if transitioned from sold out
-        if (wasSoldOut && !concert.isSoldOut()) {
-            restockService.maybeNotifyRestock(r.getConcertId());
-        }
+        // if we flipped from 0 -> >0, this will bump token + enqueue notifications
+        restockService.maybeNotifyRestock(r.getConcertId());
     }
 }

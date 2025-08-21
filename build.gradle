@@ -46,3 +46,12 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+tasks.test {
+	useJUnitPlatform()
+	// JDK 21+ will eventually disallow dynamic agent loading; enable it for Mockito inline
+	jvmArgs "-XX:+EnableDynamicAgentLoading"
+	// optional: show test logs when they fail
+	testLogging { events "failed", "skipped" }
+}
+
