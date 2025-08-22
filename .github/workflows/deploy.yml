@@ -2,6 +2,12 @@ name: Deploy to ECS
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'Dockerfile'
+      - '.github/workflows/deploy.yml'
+      - 'build.gradle'
+      - 'src/**'
+      workflow_dispatch:
 
 permissions:
   id-token: write
