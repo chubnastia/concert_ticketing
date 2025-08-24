@@ -1,0 +1,30 @@
+openapi: 3.0.3
+info:
+  title: Concert API
+  version: 0.1.0
+  description: REST API for the Concert backend
+servers:
+  - url: http://localhost:8080
+  - url: http://{host}:{port}
+    variables:
+      host:
+        default: 127.0.0.1
+      port:
+        default: '8080'
+paths:
+  /actuator/health:
+    get:
+      summary: Liveness/healthcheck
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: UP
+
+components: {}
